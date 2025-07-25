@@ -541,6 +541,7 @@ func newHeadMetrics(h *Head, r prometheus.Registerer) *headMetrics {
 		r.MustRegister(
 			m.activeAppenders,
 			m.series,
+			m.staleSeries,
 			m.chunks,
 			m.chunksCreated,
 			m.chunksRemoved,
@@ -1581,7 +1582,7 @@ func NewStaleHead(head *Head, mint, maxt int64, staleSeriesRefs []storage.Series
 }
 
 func (h *StaleHead) Index() (_ IndexReader, err error) {
-	return h.head.staleIndex(h.RangeHead.mint, h.RangeHead.maxt, h.staleSeriesRefs)
+	return h.head.staleIndex(h.mint, h.maxt, h.staleSeriesRefs)
 }
 
 func (h *StaleHead) NumSeries() uint64 {
@@ -1713,7 +1714,6 @@ func (h *Head) gc() (actualInOrderMint, minOOOTime int64, minMmapFile int) {
 // gcStaleSeries removes all the stale series provided given that they are still stale
 // and the series maxt is <= the given max.
 func (h *Head) gcStaleSeries(p index.Postings, maxt int64) {
-
 	// Drop old chunks and remember series IDs and hashes if they can be
 	// deleted entirely.
 	deleted, affected, chunksRemoved := h.series.gcStaleSeries(p, maxt)
@@ -2121,7 +2121,7 @@ func (s *stripeSeries) gc(mint int64, minOOOMmapRef chunks.ChunkDiskMapperRef, n
 	return deleted, affected, rmChunks, actualMint, minOOOTime, minMmapFile
 }
 
-// TODO: add comments
+// TODO: add comments.
 func (s *stripeSeries) gcStaleSeries(p index.Postings, maxt int64) (_ map[storage.SeriesRef]struct{}, _ map[labels.Label]struct{}, _ int) {
 	var (
 		deleted  = map[storage.SeriesRef]struct{}{}
